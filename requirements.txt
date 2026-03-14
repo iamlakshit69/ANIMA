@@ -1,0 +1,22 @@
+# Audio I/O
+pyaudio
+sounddevice
+
+# Voice activity detection
+silero-vad
+onnxruntime
+torch
+torchaudio
+
+# Speech to text
+faster-whisper
+
+# LLM
+groq
+python-dotenv
+
+# Text to speech
+kokoro-onnx
+
+# Utilities
+numpy
