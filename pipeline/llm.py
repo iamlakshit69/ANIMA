@@ -1,5 +1,5 @@
 import asyncio
-from groq import Groq
+from groq import AsyncGroq
 
 from config.settings import (
     GROQ_API_KEY,
@@ -14,7 +14,7 @@ from core.sentinel import END_OF_RESPONSE
 
 
 async def llm_stream():
-    client = Groq(api_key=GROQ_API_KEY)
+    client = AsyncGroq(api_key=GROQ_API_KEY)
     conversation_history = []
 
     print("[llm] ready...")
@@ -36,7 +36,7 @@ async def llm_stream():
             {"role": "system", "content": SYSTEM_PROMPT},
         ] + conversation_history
 
-        stream = client.chat.completions.create(
+        stream = await client.chat.completions.create(
             model=GROQ_MODEL,
             messages=messages,
             max_tokens=GROQ_MAX_TOKENS,
@@ -46,14 +46,19 @@ async def llm_stream():
 
         full_response = ""
 
-        for chunk in stream:
-            if interrupt_event.is_set():
-                break
+        async for chunk in stream:
+            token = chunk.choices[0].delta.content or ""
+            if not token:
+                continue
 
-            token = chunk.choices[0].delta.content
-            if token:
+            # Always accumulate into full_response regardless of interrupt.
+            # If we break early, conversation_history gets a truncated assistant
+            # message and future turns have corrupt context.
+            full_response += token
+
+            # Only push to tts pipeline if not interrupted
+            if not interrupt_event.is_set():
                 await token_queue.put(token)
-                full_response += token
 
         conversation_history.append({
             "role": "assistant",

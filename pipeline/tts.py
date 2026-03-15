@@ -23,15 +23,22 @@ async def tts_stream():
     while True:
         token = await token_queue.get()
 
-        if interrupt_event.is_set():
-            phrase_buffer = ""
-            continue
-
+        # Sentinel MUST be checked first - unconditionally, regardless of interrupt.
+        # If END_OF_RESPONSE is swallowed, END_OF_SPEECH never reaches speaker.py
+        # and assistant_speaking never clears - pipeline freezes permanently.
         if token is END_OF_RESPONSE:
+            # Always flush the remaining buffer - this is the tail of the response.
+            # Do NOT gate this on interrupt_event - that silently drops the final
+            # sentence (e.g. LLM said "absurd", tts never synthesized it).
             if phrase_buffer.strip():
                 await synthesize_and_enqueue(kokoro, phrase_buffer)
-                phrase_buffer = ""
-            await tts_queue.put(END_OF_SPEECH)
+            phrase_buffer = ""
+            await tts_queue.put(END_OF_SPEECH)  # always sent no matter what
+            continue
+
+        # Interrupt check AFTER sentinel
+        if interrupt_event.is_set():
+            phrase_buffer = ""
             continue
 
         phrase_buffer += token
