@@ -8,28 +8,30 @@ CHUNK_SIZE = 512
 CHANNELS = 1
 
 VAD_THRESHOLD = 0.5
-SILENCE_DURATION = 0.8
+SILENCE_DURATION = 0.5
 
-WHISPER_MODEL_SIZE = "base"
-WHISPER_DEVICE = "cpu"
 WHISPER_LANGUAGE = "en"
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = "openai/gpt-oss-120b"
-GROQ_MAX_TOKENS = 1500
-GROQ_TEMPERATURE = 0.7
+GROQ_WHISPER_MODEL = "whisper-large-v3-turbo"
+GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+GROQ_MAX_TOKENS = 100
+GROQ_TEMPERATURE = 0.4
+
+
 
 SYSTEM_PROMPT = (
     "You are a fast, helpful voice assistant. "
-    "Keep all responses short and conversational — "
-    "no bullet points, no markdown, no long explanations. "
-    "Speak like a human, not a document."
+    "You are speaking out loud to a human, not writing text. "
+    "No bullet points, no markdown, no lists. "
+    "Be concise, warm, and conversational at all times."
 )
+
 
 KOKORO_VOICE = "af_sarah"
 KOKORO_SPEED = 1.0
 KOKORO_SAMPLE_RATE = 24000
 
-MIN_PHRASE_CHARS = 20
+MIN_PHRASE_CHARS = 10
 MAX_PHRASE_CHARS = 200
 QUEUE_MAX_SIZE = 100

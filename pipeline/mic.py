@@ -14,13 +14,9 @@ from core.events import interrupt_event, assistant_speaking
 import core.events as ev
 from core.sentinel import SILENCE_MARKER
 
-# After the phrase ends, room echo rings for roughly this long.
-# Cooldown = phrase_duration + ECHO_DECAY_PAD, computed per phrase.
-ECHO_DECAY_PAD = 0.5   # seconds of room echo decay after phrase ends
-
-# Consecutive VAD-positive frames required after cooldown to confirm real voice.
-# ~8 frames x 32ms = ~256ms of sustained speech.
-BARGE_IN_FRAMES = 8
+ECHO_DECAY_PAD   = 0.5  # extra buffer after phrase ends for room echo decay
+BARGE_IN_FRAMES  = 8    # consecutive VAD frames needed to trigger barge-in
+POST_SPEECH_MUTE = 1.5  # seconds to ignore mic after assistant finishes speaking
 
 
 def _read_mic_blocking(stream):
@@ -49,31 +45,41 @@ async def microphone_stream():
     try:
         while True:
             chunk = await asyncio.to_thread(_read_mic_blocking, stream)
-            speech_prob = model(torch.tensor(chunk), SAMPLE_RATE).item()
+
+            # from_numpy shares memory — no copy vs torch.tensor()
+            speech_prob = model(torch.from_numpy(chunk), SAMPLE_RATE).item()
+
+            # single syscall per iteration instead of two
+            now = time.monotonic()
 
             if speech_prob > VAD_THRESHOLD:
                 silence_chunks = 0
                 speech_frames += 1
 
                 if assistant_speaking.is_set():
-                    # Dynamic cooldown: covers the full duration of the phrase
-                    # currently playing plus a decay buffer for room echo.
-                    # Fixed cooldowns fail on long phrases - their own echo
-                    # easily outlasts a static 1.2s window.
+                    # Barge-in: only after the current phrase's echo has decayed
                     cooldown = ev.current_phrase_duration + ECHO_DECAY_PAD
-                    elapsed  = time.monotonic() - ev.speaking_started_at
-
+                    elapsed  = now - ev.speaking_started_at
                     if elapsed > cooldown and speech_frames >= BARGE_IN_FRAMES:
                         interrupt_event.set()
-                    # Never queue echo into the STT audio buffer
+                    # Never queue echo into STT while assistant is speaking
+
                 else:
-                    await audio_queue.put(chunk)
+                    # Post-speech mute: ignore mic for a brief window after
+                    # assistant finishes — room echo still rings after END_OF_SPEECH
+                    since_ended = now - ev.speaking_ended_at
+                    if since_ended >= POST_SPEECH_MUTE:
+                        await audio_queue.put(chunk)
 
             else:
                 speech_frames = 0
                 silence_chunks += 1
                 if silence_chunks >= silence_limit:
-                    await audio_queue.put(SILENCE_MARKER)
+                    since_ended = now - ev.speaking_ended_at
+                    if since_ended >= POST_SPEECH_MUTE:
+                        await audio_queue.put(SILENCE_MARKER)
+                    # reset regardless — avoids firing stale SILENCE_MARKER
+                    # the moment mute window ends
                     silence_chunks = 0
 
     finally:

@@ -1,20 +1,38 @@
-# pipeline/stt.py
-
 import asyncio
+import io
+import time
 import numpy as np
-from faster_whisper import WhisperModel
+import soundfile as sf
+from groq import AsyncGroq
+
 from config.settings import (
-    WHISPER_MODEL_SIZE,
-    WHISPER_DEVICE,
+    GROQ_API_KEY,
+    GROQ_WHISPER_MODEL,
     WHISPER_LANGUAGE,
     SAMPLE_RATE,
 )
 from core.queues import audio_queue, text_queue
-from core.events import interrupt_event, assistant_speaking
+from core.events import interrupt_event
+import core.events as ev
 from core.sentinel import SILENCE_MARKER
 
+
+async def _transcribe_groq(client, audio_data):
+    """Convert numpy audio to WAV bytes in memory and send to Groq API."""
+    buf = io.BytesIO()
+    sf.write(buf, audio_data, SAMPLE_RATE, format='WAV')
+    buf.seek(0)
+
+    result = await client.audio.transcriptions.create(
+        model=GROQ_WHISPER_MODEL,
+        file=("audio.wav", buf, "audio/wav"),
+        language=WHISPER_LANGUAGE,
+    )
+    return result.text.strip()
+
+
 async def speech_to_text_stream():
-    model = WhisperModel(WHISPER_MODEL_SIZE, device=WHISPER_DEVICE)
+    client = AsyncGroq(api_key=GROQ_API_KEY)
     audio_buffer = []
 
     print("[stt] ready...")
@@ -30,11 +48,18 @@ async def speech_to_text_stream():
             if len(audio_buffer) == 0:
                 continue
 
+            # Stamp the moment the user stopped speaking.
+            # speaker.py reads this to compute total pipeline latency.
+            ev.user_stopped_speaking_at = time.monotonic()
+
             audio_data = np.concatenate(audio_buffer)
             audio_buffer = []
 
-            # ✅ Run blocking Whisper inference in a thread
-            transcript = await asyncio.to_thread(_transcribe, model, audio_data)
+            try:
+                transcript = await _transcribe_groq(client, audio_data)
+            except Exception as e:
+                print(f"[stt] groq error: {e}")
+                continue
 
             if transcript:
                 print(f"[stt] transcript: {transcript}")
@@ -42,15 +67,3 @@ async def speech_to_text_stream():
 
         else:
             audio_buffer.append(chunk)
-
-
-def _transcribe(model, audio_data):
-    """Synchronous helper — runs in thread pool via asyncio.to_thread."""
-    segments, _ = model.transcribe(
-        audio_data,
-        language=WHISPER_LANGUAGE,
-        beam_size=1,
-        vad_filter=True,
-    )
-    # Iterate the generator HERE in the thread, not on the event loop
-    return " ".join(segment.text.strip() for segment in segments).strip()

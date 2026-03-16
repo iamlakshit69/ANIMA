@@ -1,6 +1,5 @@
 import asyncio
 import time
-import numpy as np
 import sounddevice as sd
 
 from config.settings import KOKORO_SAMPLE_RATE
@@ -18,14 +17,17 @@ async def speaker_stream():
 
         if item is END_OF_SPEECH:
             assistant_speaking.clear()
-            interrupt_event.clear()   # safe to clear here - response is fully done
+            ev.speaking_ended_at = time.monotonic()  # stamp when speaking fully ends
+            interrupt_event.clear()
             continue
 
         samples, sample_rate = item
 
-        # Stamp both the start time AND the duration of this phrase.
-        # mic.py uses duration to set a dynamic cooldown so that long phrases
-        # don't have their own echo falsely trigger a barge-in interrupt.
+        if ev.user_stopped_speaking_at > 0:
+            latency = time.monotonic() - ev.user_stopped_speaking_at
+            print(f"[latency] {latency:.2f}s  (silence -> first audio)")
+            ev.user_stopped_speaking_at = 0.0
+
         ev.speaking_started_at = time.monotonic()
         ev.current_phrase_duration = len(samples) / sample_rate
         assistant_speaking.set()
@@ -37,7 +39,5 @@ async def speaker_stream():
             blocking=True,
         )
 
-        # Stop hardware playback if interrupted mid-chunk, but do NOT skip
-        # remaining queued chunks - they will drain naturally until END_OF_SPEECH.
         if interrupt_event.is_set():
             sd.stop()

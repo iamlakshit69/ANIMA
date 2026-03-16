@@ -16,20 +16,24 @@ from core.sentinel import END_OF_RESPONSE, END_OF_SPEECH
 
 async def tts_stream():
     kokoro = Kokoro("kokoro-v0_19.onnx", "voices.bin")
-    phrase_buffer = ""
+
+    # Warmup — ONNX runtime lazy-initializes on the first real call.
+    # Without this the first response is 200-500ms slower than all subsequent ones.
+    await asyncio.to_thread(kokoro.create, "Welcome sir", voice=KOKORO_VOICE, speed=KOKORO_SPEED, lang="en-us")
 
     print("[tts] ready...")
+
+    phrase_buffer = ""
 
     while True:
         token = await token_queue.get()
 
-        # Sentinel MUST be checked first - unconditionally, regardless of interrupt.
+        # Sentinel MUST be checked first — unconditionally, regardless of interrupt.
         # If END_OF_RESPONSE is swallowed, END_OF_SPEECH never reaches speaker.py
-        # and assistant_speaking never clears - pipeline freezes permanently.
+        # and assistant_speaking never clears — pipeline freezes permanently.
         if token is END_OF_RESPONSE:
-            # Always flush the remaining buffer - this is the tail of the response.
-            # Do NOT gate this on interrupt_event - that silently drops the final
-            # sentence (e.g. LLM said "absurd", tts never synthesized it).
+            # Always flush the remaining buffer — this is the tail of the response.
+            # Do NOT gate on interrupt_event — that silently drops the final sentence.
             if phrase_buffer.strip():
                 await synthesize_and_enqueue(kokoro, phrase_buffer)
             phrase_buffer = ""

@@ -23,3 +23,6 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         print("\n[main] shutting down...")
+    except Exception as e:
+        print(f"\n[main] crashed: {e}")
+        raise
