@@ -19,14 +19,17 @@ SILENCE_DURATION = 0.8   # seconds of silence before firing SILENCE_MARKER
 WHISPER_LANGUAGE = "en"
 
 # ── LLM ──────────────────────────────────────────────────────────────────────
-LLM_MAX_TOKENS   = 1000
+# Note: phi3.5 via Ollama does not reliably respect max_tokens through the
+# OpenAI-compatible endpoint. The system prompt is the primary length control.
+LLM_MAX_TOKENS   = 120
 LLM_TEMPERATURE  = 0.4
 SYSTEM_PROMPT = (
     "You are a voice assistant. "
     "You are having a real spoken conversation with a human — "
     "everything you say will be read aloud, so write exactly as you would speak. "
-    "Keep responses short, natural, and warm. "
-    "Never use bullet points, lists, markdown, or symbols. "
+    "STRICT RULE: Reply in 2 sentences maximum. Never more. "
+    "If a topic needs more explanation, summarise it in 2 sentences and stop. "
+    "Never use bullet points, lists, markdown, numbers, or symbols. "
     "Never start a response with a filler like 'Certainly!' or 'Of course!'. "
     "Just answer directly, like a knowledgeable friend would in conversation."
 )
@@ -38,5 +41,7 @@ KOKORO_SAMPLE_RATE = 24000
 
 # ── Pipeline ─────────────────────────────────────────────────────────────────
 MIN_PHRASE_CHARS = 15
-MAX_PHRASE_CHARS = 80
+# Lowered from 200 — shorter ceiling means Kokoro gets cleaner chunks and
+# the word-boundary split in tts.py has less distance to walk back.
+MAX_PHRASE_CHARS = 120
 QUEUE_MAX_SIZE   = 100

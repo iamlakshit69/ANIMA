@@ -48,14 +48,25 @@ async def _accumulator(phrase_queue):
 
         phrase_buffer += token
 
-        should_synthesize = (
-            len(phrase_buffer) >= MIN_PHRASE_CHARS
-            and phrase_buffer[-1] in ".!?,:"
-        ) or len(phrase_buffer) >= MAX_PHRASE_CHARS
-
-        if should_synthesize:
+        # Punctuation path — already at a clean sentence/clause boundary.
+        if len(phrase_buffer) >= MIN_PHRASE_CHARS and phrase_buffer[-1] in ".!?,:":
             await phrase_queue.put(phrase_buffer)
             phrase_buffer = ""
+
+        # Length ceiling path — walk back to the nearest word boundary so
+        # Kokoro never receives a mid-word fragment like "Ep" or "min".
+        # Previously a hard slice at MAX_PHRASE_CHARS caused exactly that.
+        elif len(phrase_buffer) >= MAX_PHRASE_CHARS:
+            last_space = phrase_buffer.rfind(" ")
+            if last_space > MIN_PHRASE_CHARS:
+                # Split cleanly at the last space
+                await phrase_queue.put(phrase_buffer[:last_space])
+                phrase_buffer = phrase_buffer[last_space + 1:]
+            else:
+                # No space found in a valid range — flush as-is rather than
+                # accumulating indefinitely (handles pathological no-space input)
+                await phrase_queue.put(phrase_buffer)
+                phrase_buffer = ""
 
 
 async def _synthesizer(kokoro, phrase_queue):
