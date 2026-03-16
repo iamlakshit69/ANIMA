@@ -12,7 +12,7 @@ from core.events import interrupt_event
 import core.events as ev
 from core.sentinel import SILENCE_MARKER
 
-WHISPER_MODEL_SIZE = "medium"
+WHISPER_MODEL_SIZE = "distil-medium.en"
 WHISPER_DEVICE     = "cuda"
 WHISPER_COMPUTE    = "float16"
 

@@ -19,7 +19,7 @@ SILENCE_DURATION = 0.8   # seconds of silence before firing SILENCE_MARKER
 WHISPER_LANGUAGE = "en"
 
 # ── LLM ──────────────────────────────────────────────────────────────────────
-LLM_MAX_TOKENS   = 100
+LLM_MAX_TOKENS   = 1000
 LLM_TEMPERATURE  = 0.4
 SYSTEM_PROMPT = (
     "You are a voice assistant. "
@@ -38,5 +38,5 @@ KOKORO_SAMPLE_RATE = 24000
 
 # ── Pipeline ─────────────────────────────────────────────────────────────────
 MIN_PHRASE_CHARS = 15
-MAX_PHRASE_CHARS = 200
+MAX_PHRASE_CHARS = 80
 QUEUE_MAX_SIZE   = 100
