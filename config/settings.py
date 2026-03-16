@@ -8,7 +8,7 @@ CHUNK_SIZE = 512
 CHANNELS = 1
 
 VAD_THRESHOLD = 0.5
-SILENCE_DURATION = 0.5
+SILENCE_DURATION = 0.4
 
 WHISPER_LANGUAGE = "en"
 
@@ -22,16 +22,16 @@ GROQ_TEMPERATURE = 0.4
 
 SYSTEM_PROMPT = (
     "You are a fast, helpful voice assistant. "
-    "You are speaking out loud to a human, not writing text. "
+    "You are speaking out loud to a human, not writing text. its like whatever you are writing would be spoken exactly. "
     "No bullet points, no markdown, no lists. "
     "Be concise, warm, and conversational at all times."
 )
 
 
-KOKORO_VOICE = "af_sarah"
-KOKORO_SPEED = 1.0
+KOKORO_VOICE = "bf_emma"
+KOKORO_SPEED = 1.15
 KOKORO_SAMPLE_RATE = 24000
 
-MIN_PHRASE_CHARS = 10
+MIN_PHRASE_CHARS = 15
 MAX_PHRASE_CHARS = 200
 QUEUE_MAX_SIZE = 100
