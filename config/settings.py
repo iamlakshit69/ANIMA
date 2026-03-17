@@ -8,19 +8,12 @@ CHUNK_SIZE       = 512
 CHANNELS         = 1
 
 # ── VAD ──────────────────────────────────────────────────────────────────────
-VAD_THRESHOLD    = 0.5   # lower = catches softer speech onsets earlier
-# At 16000 Hz / 512 chunk size each chunk is 32 ms.
-# 0.3 s = only 9 chunks — natural mid-sentence pauses (breaths, commas,
-# thinking) are often longer than that, causing Whisper to fire on fragments.
-# 0.8 s is the practical minimum for clean full-sentence captures.
-SILENCE_DURATION = 0.8   # seconds of silence before firing SILENCE_MARKER
-
+VAD_THRESHOLD    = 0.5   
+SILENCE_DURATION = 0.8   
 # ── STT ──────────────────────────────────────────────────────────────────────
 WHISPER_LANGUAGE = "en"
 
 # ── LLM ──────────────────────────────────────────────────────────────────────
-# Note: phi3.5 via Ollama does not reliably respect max_tokens through the
-# OpenAI-compatible endpoint. The system prompt is the primary length control.
 LLM_MAX_TOKENS   = 120
 LLM_TEMPERATURE  = 0.4
 SYSTEM_PROMPT = (
@@ -41,7 +34,5 @@ KOKORO_SAMPLE_RATE = 24000
 
 # ── Pipeline ─────────────────────────────────────────────────────────────────
 MIN_PHRASE_CHARS = 15
-# Lowered from 200 — shorter ceiling means Kokoro gets cleaner chunks and
-# the word-boundary split in tts.py has less distance to walk back.
 MAX_PHRASE_CHARS = 120
 QUEUE_MAX_SIZE   = 100
