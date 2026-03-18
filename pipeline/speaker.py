@@ -2,11 +2,12 @@ import asyncio
 import time
 import sounddevice as sd
 
-from config.settings import KOKORO_SAMPLE_RATE
-from core.queues import tts_queue
+from core.queues import tts_queue, audio_queue
 from core.events import interrupt_event, assistant_speaking
 import core.events as ev
 from core.sentinel import END_OF_SPEECH
+
+POLL_INTERVAL = 0.02  # seconds between interrupt checks during playback (20 ms)
 
 
 async def speaker_stream():
@@ -17,27 +18,57 @@ async def speaker_stream():
 
         if item is END_OF_SPEECH:
             assistant_speaking.clear()
-            ev.speaking_ended_at = time.monotonic()  # stamp when speaking fully ends
+            ev.speaking_ended_at = time.monotonic()
             interrupt_event.clear()
+
+            # Flush any echo chunks already sitting in audio_queue.
+            # These were queued during the tiny gap between sd.play() finishing
+            # and END_OF_SPEECH being processed — they are pure echo, not user speech.
+            flushed = 0
+            while not audio_queue.empty():
+                try:
+                    audio_queue.get_nowait()
+                    flushed += 1
+                except asyncio.QueueEmpty:
+                    break
+            if flushed > 0:
+                print(f"[speaker] flushed {flushed} stale echo chunks from audio_queue")
             continue
 
         samples, sample_rate = item
 
+        # Print full per-step latency breakdown on the first audio chunk of each turn.
+        # Requires stt_done_at, llm_first_token_at, tts_first_phrase_done_at to be
+        # stamped by stt.py, llm.py, and tts.py respectively.
         if ev.user_stopped_speaking_at > 0:
-            latency = time.monotonic() - ev.user_stopped_speaking_at
-            print(f"[latency] {latency:.2f}s  (silence -> first audio)")
+            now = time.monotonic()
+
+            stt_time = ev.stt_done_at              - ev.user_stopped_speaking_at
+            llm_time = ev.llm_first_token_at       - ev.stt_done_at
+            tts_time = ev.tts_first_phrase_done_at - ev.llm_first_token_at
+            total    = now                         - ev.user_stopped_speaking_at
+
+            print(
+                f"[latency] total {total:.2f}s  |  "
+                f"STT {stt_time:.2f}s  |  "
+                f"LLM {llm_time:.2f}s  |  "
+                f"TTS {tts_time:.2f}s"
+            )
+
             ev.user_stopped_speaking_at = 0.0
 
         ev.speaking_started_at = time.monotonic()
         ev.current_phrase_duration = len(samples) / sample_rate
         assistant_speaking.set()
 
-        await asyncio.to_thread(
-            sd.play,
-            samples,
-            samplerate=sample_rate,
-            blocking=True,
-        )
+        # Non-blocking play + poll loop so we can stop mid-phrase on barge-in.
+        # The old blocking=True approach meant sd.stop() only ran after the phrase
+        # had already finished — making barge-in a no-op for any ongoing phrase.
+        sd.play(samples, samplerate=sample_rate)
 
-        if interrupt_event.is_set():
-            sd.stop()
+        while sd.get_stream().active:
+            if interrupt_event.is_set():
+                sd.stop()
+                print("[speaker] playback interrupted (barge-in)")
+                break
+            await asyncio.sleep(POLL_INTERVAL)

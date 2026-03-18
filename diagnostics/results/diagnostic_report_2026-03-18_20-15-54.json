@@ -1,0 +1,550 @@
+{
+  "meta": {
+    "timestamp": "2026-03-18T20:15:54.052464",
+    "timestamp_unix": 1773845154.052464,
+    "hostname": "XAEII",
+    "git_hash": "cc9d152",
+    "git_branch": "main",
+    "python_version": "3.13.7"
+  },
+  "summary": {
+    "pipeline": {
+      "stt_mean_latency_s": 0.188,
+      "llm_short_ttft_s": 0.132,
+      "tts_medium_latency_s": 0.438,
+      "tts_medium_rtf": 0.216
+    },
+    "network": {
+      "groq_ping_mean_ms": 256.24,
+      "groq_ping_jitter_ms": 1.37,
+      "upload_mbps": 2.87,
+      "download_mbps": 40.04,
+      "api_key_valid": true
+    },
+    "hardware": {
+      "gpu_name": "NVIDIA GeForce RTX 2070 SUPER",
+      "gpu_vram_gb": 8.16,
+      "ram_total_gb": 32.95,
+      "ram_usage_pct": 11.5,
+      "disk_read_mbs": 3099.3,
+      "cpu_cores": 6
+    },
+    "audio": {
+      "noise_floor_mean_rms": 0.50339,
+      "echo_decay_time_s": 0.04,
+      "echo_fully_decayed": true,
+      "vad_false_positive_pct": 0.0,
+      "recommended_min_audio_energy": 1.7036,
+      "recommended_buffer_mute_guard": 0.5,
+      "recommended_post_speech_mute": 0.3
+    },
+    "health": {
+      "gpu_available": true,
+      "groq_reachable": true,
+      "api_key_valid": true,
+      "stt_status": "good",
+      "llm_status": "good",
+      "tts_status": "good",
+      "echo_clean": true,
+      "vad_clean": true,
+      "system_prompt_compliance_pct": 75.0
+    }
+  },
+  "results": {
+    "hardware": {
+      "cpu": {
+        "model": "Architecture:                            x86_64",
+        "physical_cores": 6,
+        "logical_cores": 12,
+        "freq_mhz_current": 1582.2,
+        "freq_mhz_max": 5600.0,
+        "usage_percent": 1.0
+      },
+      "ram": {
+        "total_gb": 32.95,
+        "available_gb": 29.18,
+        "used_gb": 3.78,
+        "usage_percent": 11.5
+      },
+      "gpu": {
+        "available": true,
+        "cuda_version": "12.8",
+        "driver_version": "590.48.01",
+        "gpus": [
+          {
+            "index": 0,
+            "name": "NVIDIA GeForce RTX 2070 SUPER",
+            "vram_total_gb": 8.16,
+            "vram_free_gb": 7.75,
+            "vram_used_gb": 0.41,
+            "vram_usage_pct": 5.1,
+            "compute_capability": "7.5",
+            "multiprocessors": 40
+          }
+        ]
+      },
+      "disk": {
+        "read_speed_mbs": 3099.3,
+        "write_speed_mbs": 4157.5,
+        "partition_total_gb": 490.0,
+        "partition_free_gb": 359.8,
+        "partition_usage_pct": 23.1
+      },
+      "audio_system": {
+        "server_name": "PulseAudio (on PipeWire 1.4.7)",
+        "server_version": "15.0.0",
+        "default_source": "alsa_input.pci-0000_00_1f.3.analog-stereo",
+        "source_volume": "Volume: front-left: 31257 /  48% / -19.29 dB,   front-right: 31257 /  48% / -19.29 dB",
+        "source_mute": "Mute: no"
+      },
+      "versions": {
+        "python": "3.13.7",
+        "os": "Linux 6.17.0-19-generic",
+        "torch": "2.10.0+cu128",
+        "cuda": "12.8",
+        "groq": "1.1.1",
+        "faster_whisper": "1.2.1",
+        "kokoro_onnx": "0.5.0",
+        "silero_vad": "6.2.1",
+        "pyaudio": "0.2.14",
+        "sounddevice": "0.5.5",
+        "onnxruntime": "not installed",
+        "numpy": "2.4.3"
+      }
+    },
+    "audio": {
+      "device_latency": {
+        "input_device": "default",
+        "input_latency_ms": 8.68,
+        "output_device": "default",
+        "output_latency_ms": 8.68,
+        "input_sample_rate": 44100,
+        "output_sample_rate": 44100
+      },
+      "noise_floor": {
+        "mean_rms": 0.50339,
+        "max_rms": 0.99997,
+        "min_rms": 0.02452,
+        "std_rms": 0.40007,
+        "recommended_min_audio_energy": 1.7036
+      },
+      "vad_false_positives": {
+        "chunks_tested": 156,
+        "false_positives": 0,
+        "false_positive_pct": 0.0,
+        "mean_vad_prob": 0.002,
+        "max_vad_prob": 0.0087,
+        "vad_threshold": 0.5,
+        "status": "good"
+      },
+      "vad_detection_latency": {
+        "detection_chunk": null,
+        "detection_latency_ms": null,
+        "chunk_duration_ms": 32.0,
+        "tone_vad_probs": [
+          0.0074,
+          0.0037,
+          0.0031,
+          0.0027,
+          0.0031,
+          0.0027,
+          0.0017,
+          0.0012,
+          0.0011,
+          0.001,
+          0.0009,
+          0.0008,
+          0.0006,
+          0.0006,
+          0.0006,
+          0.0005,
+          0.0008,
+          0.0007,
+          0.0006,
+          0.0005,
+          0.0005,
+          0.0006,
+          0.0005,
+          0.0005,
+          0.0005,
+          0.0004,
+          0.0003,
+          0.0004,
+          0.0004,
+          0.0003,
+          0.0004
+        ]
+      },
+      "echo_decay": {
+        "playback_duration_s": 6.06,
+        "post_playback_peak_rms": 0.0183,
+        "post_playback_mean_rms": 0.0112,
+        "echo_decay_time_s": 0.04,
+        "echo_fully_decayed": true,
+        "recommended_buffer_mute_guard": 0.5,
+        "recommended_post_speech_mute": 0.3,
+        "playback_end_t": 6.052
+      }
+    },
+    "network": {
+      "groq_reachable": true,
+      "dns": {
+        "host": "api.groq.com",
+        "ip": "172.64.149.20",
+        "latency_ms": 16.36,
+        "success": true
+      },
+      "tls_handshake": {
+        "latency_ms": 71.09,
+        "success": true
+      },
+      "ping": {
+        "success": true,
+        "samples": 10,
+        "min_ms": 254.21,
+        "mean_ms": 256.24,
+        "max_ms": 258.41,
+        "std_ms": 1.37,
+        "jitter_ms": 1.37
+      },
+      "api_key": {
+        "valid": true,
+        "latency_ms": 321.02,
+        "status_code": 200,
+        "models_available": 18,
+        "models": [
+          "canopylabs/orpheus-v1-english",
+          "whisper-large-v3-turbo",
+          "whisper-large-v3",
+          "allam-2-7b",
+          "groq/compound",
+          "openai/gpt-oss-safeguard-20b",
+          "meta-llama/llama-4-scout-17b-16e-instruct",
+          "openai/gpt-oss-20b",
+          "canopylabs/orpheus-arabic-saudi",
+          "openai/gpt-oss-120b"
+        ]
+      },
+      "upload_bandwidth": {
+        "success": true,
+        "payload_mb": 2,
+        "elapsed_s": 5.57,
+        "speed_mbps": 2.87,
+        "speed_MBs": 0.36,
+        "est_1s_wav_ms": 87.1,
+        "est_3s_wav_ms": 261.2,
+        "est_5s_wav_ms": 435.4
+      },
+      "download_bandwidth": {
+        "success": true,
+        "size_mb": 2.1,
+        "elapsed_s": 0.42,
+        "speed_mbps": 40.04,
+        "speed_MBs": 5.01
+      }
+    },
+    "stt": {
+      "model_info": {
+        "configured_model": "whisper-large-v3-turbo",
+        "model_available": true,
+        "whisper_models": [
+          "whisper-large-v3-turbo",
+          "whisper-large-v3"
+        ],
+        "api_latency_ms": 336.62
+      },
+      "latency_by_length": {
+        "1s": {
+          "audio_duration_s": 1.0,
+          "wav_size_kb": 31.3,
+          "runs": 3,
+          "min_s": 0.177,
+          "mean_s": 0.187,
+          "max_s": 0.196,
+          "std_s": 0.008,
+          "realtime_factor": 0.187
+        },
+        "3s": {
+          "audio_duration_s": 3.0,
+          "wav_size_kb": 93.8,
+          "runs": 3,
+          "min_s": 0.182,
+          "mean_s": 0.186,
+          "max_s": 0.193,
+          "std_s": 0.005,
+          "realtime_factor": 0.062
+        },
+        "5s": {
+          "audio_duration_s": 5.0,
+          "wav_size_kb": 156.3,
+          "runs": 3,
+          "min_s": 0.191,
+          "mean_s": 0.192,
+          "max_s": 0.193,
+          "std_s": 0.001,
+          "realtime_factor": 0.038
+        }
+      },
+      "accuracy": {
+        "overall_accuracy_pct": 93.3,
+        "phrases": [
+          {
+            "expected": "Hello, how are you today?",
+            "got": "Hello, how are you today?",
+            "latency_s": 0.243,
+            "accuracy_pct": 100.0,
+            "exact_match": true
+          },
+          {
+            "expected": "The weather is nice outside.",
+            "got": "The weather is nice outside.",
+            "latency_s": 0.237,
+            "accuracy_pct": 100.0,
+            "exact_match": true
+          },
+          {
+            "expected": "My name is John and I am thirty years old.",
+            "got": "My name is Jan and I am 30 years old.",
+            "latency_s": 0.262,
+            "accuracy_pct": 80.0,
+            "exact_match": false
+          }
+        ]
+      },
+      "summary": {
+        "avg_latency_s": 0.188,
+        "model": "whisper-large-v3-turbo",
+        "language": "en",
+        "status": "good"
+      }
+    },
+    "llm": {
+      "model_info": {
+        "configured_model": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "model_available": true,
+        "api_latency_ms": 956.47,
+        "total_models": 18
+      },
+      "by_complexity": {
+        "short": {
+          "prompt": "Hi.",
+          "prompt_words": 1,
+          "runs": 3,
+          "ttft": {
+            "min_s": 0.094,
+            "mean_s": 0.132,
+            "max_s": 0.2,
+            "std_s": 0.048
+          },
+          "total_latency": {
+            "min_s": 0.125,
+            "mean_s": 0.17,
+            "max_s": 0.246
+          },
+          "throughput": {
+            "mean_tokens_per_sec": 454.6,
+            "max_tokens_per_sec": 506.7
+          },
+          "avg_tokens_generated": 17.0,
+          "sample_response": "How can I help you today? What's on your mind?"
+        },
+        "medium": {
+          "prompt": "What is the capital of France and what is it known for?",
+          "prompt_words": 12,
+          "runs": 3,
+          "ttft": {
+            "min_s": 0.093,
+            "mean_s": 0.112,
+            "max_s": 0.129,
+            "std_s": 0.015
+          },
+          "total_latency": {
+            "min_s": 0.212,
+            "mean_s": 0.229,
+            "max_s": 0.261
+          },
+          "throughput": {
+            "mean_tokens_per_sec": 420.4,
+            "max_tokens_per_sec": 439.6
+          },
+          "avg_tokens_generated": 49.0,
+          "sample_response": "The capital of France is Paris, and it's known for its iconic landmarks like the Eiffel Tower and Notre-Dame Cathedral. Paris is also famous for its art museums, fashion industry, and romantic atmosphere, often referred to as the City of Light."
+        },
+        "long": {
+          "prompt": "Can you explain the main differences between machine learning and deep learning, and give me a practical example of each?",
+          "prompt_words": 20,
+          "runs": 3,
+          "ttft": {
+            "min_s": 0.09,
+            "mean_s": 0.111,
+            "max_s": 0.15,
+            "std_s": 0.028
+          },
+          "total_latency": {
+            "min_s": 0.288,
+            "mean_s": 0.331,
+            "max_s": 0.367
+          },
+          "throughput": {
+            "mean_tokens_per_sec": 435.4,
+            "max_tokens_per_sec": 439.5
+          },
+          "avg_tokens_generated": 95.7,
+          "sample_response": "Machine learning is a type of artificial intelligence that enables computers to learn from data without being explicitly programmed, whereas deep learning is a subset of machine learning that uses neural networks to analyze data. A practical example of machine learning is a spam filter that learns to classify emails as spam or not spam based on their content, while an example of deep learning is a self-driving car's ability to recognize objects like pedestrians, cars, and traffic lights."
+        }
+      },
+      "history_overhead": {
+        "0_turns": {
+          "history_turns": 0,
+          "approx_history_tokens": 0,
+          "mean_ttft_s": 0.147,
+          "min_ttft_s": 0.092,
+          "max_ttft_s": 0.178
+        },
+        "5_turns": {
+          "history_turns": 5,
+          "approx_history_tokens": 75,
+          "mean_ttft_s": 0.097,
+          "min_ttft_s": 0.094,
+          "max_ttft_s": 0.1
+        },
+        "10_turns": {
+          "history_turns": 10,
+          "approx_history_tokens": 150,
+          "mean_ttft_s": 0.103,
+          "min_ttft_s": 0.1,
+          "max_ttft_s": 0.106
+        },
+        "overhead_per_turn_s": -0.0044
+      },
+      "compliance": {
+        "response": "Quantum computing is a new way of processing information that's different from classical computers, it uses the principles of quantum mechanics to perform calculations, like superpositions and entanglements, to solve problems that are too complex for regular computers. For example, imagine you have a huge combination lock with millions of possible combinations, a quantum computer can try all combinations at the same time and find the right one instantly, whereas a classical computer would have to try them one by one.",
+        "word_count": 81,
+        "sentence_count": 2,
+        "checks": {
+          "no_bullet_points": true,
+          "no_markdown": true,
+          "within_2_sentences": true,
+          "concise_under_80_words": false
+        },
+        "compliance_score": 75.0
+      },
+      "summary": {
+        "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "short_prompt_ttft_s": 0.132,
+        "max_tokens": 120,
+        "temperature": 0.4,
+        "status": "good"
+      }
+    },
+    "tts": {
+      "model_info": {
+        "onnx_model": {
+          "path": "kokoro-v0_19.onnx",
+          "size_mb": 325.5,
+          "exists": true
+        },
+        "voices": {
+          "path": "voices.bin",
+          "size_mb": 5.8,
+          "exists": true
+        },
+        "onnxruntime_version": "1.24.3",
+        "onnxruntime_providers": [
+          "AzureExecutionProvider",
+          "CPUExecutionProvider"
+        ]
+      },
+      "cold_start": {
+        "cold_start_s": 0.263,
+        "warmed_up_s": 0.368,
+        "overhead_s": -0.105,
+        "audio_duration_s": 1.131,
+        "cold_rtf": 0.233,
+        "warm_rtf": 0.326,
+        "gpu_memory_delta_mb": 0.0
+      },
+      "by_length": {
+        "short": {
+          "phrase": "Good evening.",
+          "char_count": 13,
+          "word_count": 2,
+          "runs": 3,
+          "latency": {
+            "min_s": 0.235,
+            "mean_s": 0.236,
+            "max_s": 0.237,
+            "std_s": 0.001
+          },
+          "audio_duration_s": 1.131,
+          "sample_rate": 24000,
+          "realtime_factor": 0.208,
+          "chars_per_sec": 55.2,
+          "gpu_used_mb": 412.2
+        },
+        "medium": {
+          "phrase": "Good evening, how can I help you today?",
+          "char_count": 39,
+          "word_count": 8,
+          "runs": 3,
+          "latency": {
+            "min_s": 0.432,
+            "mean_s": 0.438,
+            "max_s": 0.443,
+            "std_s": 0.004
+          },
+          "audio_duration_s": 2.027,
+          "sample_rate": 24000,
+          "realtime_factor": 0.216,
+          "chars_per_sec": 89.1,
+          "gpu_used_mb": 412.2
+        },
+        "long": {
+          "phrase": "Nazi Germany, led by Adolf Hitler, was a period of extreme nationalism and racism in Germany from 1933 to 1945.",
+          "char_count": 111,
+          "word_count": 20,
+          "runs": 3,
+          "latency": {
+            "min_s": 1.724,
+            "mean_s": 1.74,
+            "max_s": 1.752,
+            "std_s": 0.011
+          },
+          "audio_duration_s": 8.619,
+          "sample_rate": 24000,
+          "realtime_factor": 0.202,
+          "chars_per_sec": 63.8,
+          "gpu_used_mb": 412.2
+        }
+      },
+      "word_split": {
+        "original_chars": 126,
+        "max_phrase_chars": 120,
+        "min_phrase_chars": 15,
+        "split_at_char": 116,
+        "part1": "The quick brown fox jumps over the lazy dog near the riverbank while the sun sets slowly behind the mountains in the",
+        "part1_chars": 116,
+        "part1_latency_s": 1.148,
+        "part2": "distance.",
+        "part2_chars": 9,
+        "part2_latency_s": 0.213,
+        "clean_split": true
+      },
+      "gpu": {
+        "available": true,
+        "before_used_mb": 412.2,
+        "after_used_mb": 412.2,
+        "delta_mb": 0.0,
+        "synthesis_latency_s": 1.723
+      },
+      "summary": {
+        "voice": "bf_emma",
+        "speed": 1.15,
+        "medium_phrase_latency_s": 0.438,
+        "medium_phrase_rtf": 0.216,
+        "cold_start_overhead_s": -0.105,
+        "status": "good"
+      }
+    }
+  }
+}
