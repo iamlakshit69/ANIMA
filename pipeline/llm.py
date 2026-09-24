@@ -16,7 +16,7 @@ from core.sentinel import END_OF_RESPONSE
 # One turn = 1 user message + 1 assistant message = 2 entries in the list.
 # The old code sliced [-10:] which kept 10 *messages* (only 5 turns).
 MAX_HISTORY_TURNS = 10
-OLLAMA_MODEL = "qwen2.5:7b"
+OLLAMA_MODEL = "phi3:3.8b"
 
 
 async def llm_stream():

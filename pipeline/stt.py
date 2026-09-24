@@ -13,8 +13,8 @@ import core.events as ev
 from core.sentinel import SILENCE_MARKER
 
 WHISPER_MODEL_SIZE = "distil-medium.en"
-WHISPER_DEVICE     = "cuda"
-WHISPER_COMPUTE    = "float16"
+WHISPER_DEVICE     = "cpu"
+WHISPER_COMPUTE    = "int8"
 
 SILENCE_RMS        = 0.01   # RMS below which a chunk is considered silent
 MIN_AUDIO_ENERGY   = 0.02   # minimum RMS of entire buffer — below this Whisper hallucinates
