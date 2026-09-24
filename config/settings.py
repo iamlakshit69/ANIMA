@@ -9,9 +9,10 @@ CHANNELS         = 1
 
 # ── VAD ──────────────────────────────────────────────────────────────────────
 VAD_THRESHOLD    = 0.5   
-SILENCE_DURATION = 0.8   
+SILENCE_DURATION = 0.5   
 # ── STT ──────────────────────────────────────────────────────────────────────
-WHISPER_LANGUAGE = "en"
+WHISPER_LANGUAGE   = "en"
+WHISPER_MODEL_SIZE = "base.en"
 
 # ── LLM ──────────────────────────────────────────────────────────────────────
 LLM_MAX_TOKENS   = 120
@@ -28,6 +29,12 @@ SYSTEM_PROMPT = (
 )
 
 # ── TTS ──────────────────────────────────────────────────────────────────────
+# Options: "en_US-lessac-low" (~35ms latency, 16kHz) or "en_US-lessac-medium" (~85ms latency, 22.05kHz)
+PIPER_VOICE_NAME   = "en_US-lessac-low"
+PIPER_MODEL_PATH   = os.path.join(os.path.dirname(os.path.dirname(__file__)), "piper_models", f"{PIPER_VOICE_NAME}.onnx")
+PIPER_CONFIG_PATH  = os.path.join(os.path.dirname(os.path.dirname(__file__)), "piper_models", f"{PIPER_VOICE_NAME}.onnx.json")
+
+# Kokoro (legacy fallback)
 KOKORO_VOICE       = "bf_emma"
 KOKORO_SPEED       = 1.15
 KOKORO_SAMPLE_RATE = 24000

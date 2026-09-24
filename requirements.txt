@@ -12,6 +12,7 @@ faster-whisper
 openai
 python-dotenv
 # Text to speech
+piper-tts
 kokoro-onnx
 # Utilities
 numpy

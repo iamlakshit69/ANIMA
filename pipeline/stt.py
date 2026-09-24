@@ -5,6 +5,7 @@ from faster_whisper import WhisperModel
 
 from config.settings import (
     WHISPER_LANGUAGE,
+    WHISPER_MODEL_SIZE,
     SAMPLE_RATE,
 )
 from core.queues import audio_queue, text_queue
@@ -12,7 +13,6 @@ from core.events import interrupt_event
 import core.events as ev
 from core.sentinel import SILENCE_MARKER
 
-WHISPER_MODEL_SIZE = "distil-medium.en"
 WHISPER_DEVICE     = "cpu"
 WHISPER_COMPUTE    = "int8"
 
@@ -55,7 +55,7 @@ def _transcribe(model, audio_data):
 
 
 async def speech_to_text_stream():
-    print(f"[stt] loading whisper {WHISPER_MODEL_SIZE} on GPU...")
+    print(f"[stt] loading whisper {WHISPER_MODEL_SIZE} on {WHISPER_DEVICE.upper()} ({WHISPER_COMPUTE})...")
     model = WhisperModel(
         WHISPER_MODEL_SIZE,
         device=WHISPER_DEVICE,

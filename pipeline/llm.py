@@ -26,6 +26,16 @@ async def llm_stream():
     )
     conversation_history = []
 
+    print(f"[llm] warming up {OLLAMA_MODEL}...")
+    try:
+        await client.chat.completions.create(
+            model=OLLAMA_MODEL,
+            messages=[{"role": "user", "content": "hi"}],
+            max_tokens=1,
+        )
+    except Exception as e:
+        print(f"[llm] warmup note: {e}")
+
     print(f"[llm] ready... (local: {OLLAMA_MODEL})")
 
     while True:
