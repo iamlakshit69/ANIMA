@@ -1,7 +1,11 @@
 import os
 from dotenv import load_dotenv
 
+# Load .env from project root, config directory, or current directory
+_root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(dotenv_path=os.path.join(_root_dir, ".env"))
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
+load_dotenv()
 
 SAMPLE_RATE = 16000
 CHUNK_SIZE  = 480
