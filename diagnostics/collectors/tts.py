@@ -23,12 +23,16 @@ import torch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from config.settings import (
-    KOKORO_VOICE,
-    KOKORO_SPEED,
-    KOKORO_SAMPLE_RATE,
     MIN_PHRASE_CHARS,
     MAX_PHRASE_CHARS,
 )
+try:
+    from config.settings import KOKORO_VOICE, KOKORO_SPEED, KOKORO_SAMPLE_RATE
+except ImportError:
+    KOKORO_VOICE = "af_heart"
+    KOKORO_SPEED = 1.0
+    KOKORO_SAMPLE_RATE = 24000
+
 
 # ── Config ────────────────────────────────────────────────────────────────────
 RUNS_PER_PHRASE = 3

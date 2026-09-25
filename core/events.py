@@ -1,22 +1,24 @@
+"""
+core/events.py
+==============
+Backward-compatibility shim.
+All new code should import from `core.state` and `core.turn`.
+"""
+
 import asyncio
-import time
+from core.state import playback_state, TurnLatency
+from core.turn import turn_controller
 
-interrupt_event    = asyncio.Event()
-assistant_speaking = asyncio.Event()
+# Backward-compatibility aliases
+interrupt_event = asyncio.Event()
+assistant_speaking = playback_state.speaking
 
-# Phrase playback timing (used by mic.py for echo cooldown)
-speaking_started_at: float = 0.0
-current_phrase_duration: float = 0.0
-
-# Initialised to now rather than 0.0 — prevents the very first mic chunk
-# from passing the POST_SPEECH_MUTE / BUFFER_MUTE_GUARD checks on startup
-# before the assistant has ever spoken.
-speaking_ended_at: float = time.monotonic()
-
-# Per-turn latency breakdown — stamped by each pipeline stage and read by
-# speaker.py to print the full STT | LLM | TTS | total breakdown on the
-# first audio chunk of each turn.
-user_stopped_speaking_at: float = 0.0   # stamped in stt.py when SILENCE_MARKER is dequeued
-stt_done_at: float = 0.0               # stamped in stt.py after Groq Whisper returns
-llm_first_token_at: float = 0.0        # stamped in llm.py when first token arrives
-tts_first_phrase_done_at: float = 0.0  # stamped in tts.py when first Kokoro synthesis finishes
+# Legacy floats mapped to playback_state
+def __getattr__(name):
+    if name == "speaking_started_at":
+        return playback_state.started_at
+    if name == "current_phrase_duration":
+        return playback_state.phrase_duration
+    if name == "speaking_ended_at":
+        return playback_state.ended_at
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

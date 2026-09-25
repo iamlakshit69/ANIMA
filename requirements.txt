@@ -1,6 +1,11 @@
-pyaudio
 sounddevice
 groq
 python-dotenv
-webrtcvad
 numpy
+faster-whisper
+kokoro-onnx
+silero-vad
+torch
+pytest
+pytest-asyncio
+

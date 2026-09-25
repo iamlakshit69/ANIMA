@@ -2,73 +2,91 @@ import asyncio
 import time
 import sounddevice as sd
 
-from core.queues import tts_queue, audio_queue
-from core.events import interrupt_event, assistant_speaking
-import core.events as ev
+from config.settings import SPEAKER_DEVICE
+import core.queues as queues
+from core.state import playback_state, TurnLatency
+from core.turn import turn_controller
 from core.sentinel import END_OF_SPEECH
+from core.logger import get_logger
 
-POLL_INTERVAL = 0.02  # seconds between interrupt checks during playback (20 ms)
+logger = get_logger("anima.speaker")
+
+POLL_INTERVAL = 0.02  # seconds between interrupt/generation checks during playback (20 ms)
 
 
 async def speaker_stream():
-    print("[speaker] ready...")
+    """Continuously receive synthesized audio chunks tagged with generation IDs,
+    play them with sounddevice, log per-turn latency breakdowns, and support
+    instant cancellation if superseded by a newer generation ID.
+    """
+    try:
+        out_dev = sd.query_devices(SPEAKER_DEVICE, kind="output")
+        logger.info(
+            "[speaker] using output device #%s: %s",
+            out_dev.get("index", "default"), out_dev.get("name")
+        )
+    except Exception as e:
+        logger.warning("[speaker] could not query output device %s: %s", SPEAKER_DEVICE, e)
+
+    logger.info("[speaker] ready...")
 
     while True:
-        item = await tts_queue.get()
+        item = await queues.tts_queue.get()
 
-        if item is END_OF_SPEECH:
-            assistant_speaking.clear()
-            ev.speaking_ended_at = time.monotonic()
-            interrupt_event.clear()
+        if isinstance(item, tuple):
+            if len(item) == 3:
+                gen_id, payload, latency = item
+            else:
+                gen_id, payload = item
+                latency = TurnLatency()
+        else:
+            gen_id = turn_controller.current
+            payload = item
+            latency = TurnLatency()
 
-            # Flush any echo chunks already sitting in audio_queue.
-            # These were queued during the tiny gap between sd.play() finishing
-            # and END_OF_SPEECH being processed — they are pure echo, not user speech.
-            flushed = 0
-            while not audio_queue.empty():
-                try:
-                    audio_queue.get_nowait()
-                    flushed += 1
-                except asyncio.QueueEmpty:
-                    break
-            if flushed > 0:
-                print(f"[speaker] flushed {flushed} stale echo chunks from audio_queue")
+        # Staleness check: discard stale audio chunk or stale END_OF_SPEECH
+        # directly eliminating the race condition from Finding 2
+        if gen_id != turn_controller.current:
+            logger.debug(
+                "[speaker] dropping stale item for gen %d (current=%d)",
+                gen_id, turn_controller.current
+            )
             continue
 
-        samples, sample_rate = item
+        if payload is END_OF_SPEECH:
+            playback_state.mark_ended()
+            logger.info("[speaker] gen=%d finished speech", gen_id)
+            continue
 
-        # Print full per-step latency breakdown on the first audio chunk of each turn.
-        # Requires stt_done_at, llm_first_token_at, tts_first_phrase_done_at to be
-        # stamped by stt.py, llm.py, and tts.py respectively.
-        if ev.user_stopped_speaking_at > 0:
+        samples, sample_rate = payload
+
+        # Print full per-step latency breakdown on the first audio chunk of this turn
+        if latency and latency.user_stopped_speaking_at > 0:
             now = time.monotonic()
+            stt_time = max(0.0, latency.stt_done_at - latency.user_stopped_speaking_at) if latency.stt_done_at > 0 else 0.0
+            llm_time = max(0.0, latency.llm_first_token_at - latency.stt_done_at) if (latency.llm_first_token_at > 0 and latency.stt_done_at > 0) else 0.0
+            tts_time = max(0.0, latency.tts_first_phrase_done_at - latency.llm_first_token_at) if (latency.tts_first_phrase_done_at > 0 and latency.llm_first_token_at > 0) else 0.0
+            total    = max(0.0, now - latency.user_stopped_speaking_at)
 
-            stt_time = ev.stt_done_at              - ev.user_stopped_speaking_at
-            llm_time = ev.llm_first_token_at       - ev.stt_done_at
-            tts_time = ev.tts_first_phrase_done_at - ev.llm_first_token_at
-            total    = now                         - ev.user_stopped_speaking_at
-
-            print(
-                f"[latency] total {total:.2f}s  |  "
-                f"STT {stt_time:.2f}s  |  "
-                f"LLM {llm_time:.2f}s  |  "
-                f"TTS {tts_time:.2f}s"
+            logger.info(
+                "[latency] gen=%d total %.2fs | STT %.2fs | LLM %.2fs | TTS %.2fs",
+                gen_id, total, stt_time, llm_time, tts_time
             )
+            latency.user_stopped_speaking_at = 0.0
 
-            ev.user_stopped_speaking_at = 0.0
+        playback_state.mark_started(len(samples) / sample_rate)
 
-        ev.speaking_started_at = time.monotonic()
-        ev.current_phrase_duration = len(samples) / sample_rate
-        assistant_speaking.set()
+        # Non-blocking play + polling loop so we can stop mid-phrase on barge-in
+        try:
+            sd.play(samples, samplerate=sample_rate, device=SPEAKER_DEVICE)
 
-        # Non-blocking play + poll loop so we can stop mid-phrase on barge-in.
-        # The old blocking=True approach meant sd.stop() only ran after the phrase
-        # had already finished — making barge-in a no-op for any ongoing phrase.
-        sd.play(samples, samplerate=sample_rate)
-
-        while sd.get_stream().active:
-            if interrupt_event.is_set():
-                sd.stop()
-                print("[speaker] playback interrupted (barge-in)")
-                break
-            await asyncio.sleep(POLL_INTERVAL)
+            while sd.get_stream().active:
+                if gen_id != turn_controller.current or playback_state.interrupted:
+                    sd.stop()
+                    playback_state.mark_ended()
+                    logger.info("[speaker] gen=%d playback interrupted (superseded by %d)", gen_id, turn_controller.current)
+                    break
+                await asyncio.sleep(POLL_INTERVAL)
+        except Exception as e:
+            logger.error("[speaker] error playing audio chunk for gen %d: %s", gen_id, e)
+            playback_state.mark_ended()

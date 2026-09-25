@@ -25,8 +25,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from config.settings import (
     SAMPLE_RATE, CHUNK_SIZE, CHANNELS,
-    VAD_THRESHOLD, KOKORO_VOICE, KOKORO_SPEED,
 )
+try:
+    from config.settings import VAD_THRESHOLD, KOKORO_VOICE, KOKORO_SPEED
+except ImportError:
+    VAD_THRESHOLD = 0.5
+    KOKORO_VOICE = "af_heart"
+    KOKORO_SPEED = 1.0
+
 
 # ── Config ────────────────────────────────────────────────────────────────────
 SILENCE_MEASURE_SECS  = 3.0   # how long to record silence for noise floor
