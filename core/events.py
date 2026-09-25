@@ -3,6 +3,7 @@ import time
 
 interrupt_event = asyncio.Event()
 assistant_speaking = asyncio.Event()
+interrupt_counter: int = 0
 
 # Phrase playback timing (used by mic.py for echo cooldown)
 speaking_started_at: float = 0.0

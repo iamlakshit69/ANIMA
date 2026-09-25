@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
+load_dotenv()
 
 # ── Audio ─────────────────────────────────────────────────────────────────────
 SAMPLE_RATE      = 16000
@@ -8,8 +9,14 @@ CHUNK_SIZE       = 512
 CHANNELS         = 1
 
 # ── VAD ──────────────────────────────────────────────────────────────────────
-VAD_THRESHOLD    = 0.5   
-SILENCE_DURATION = 0.5   
+VAD_THRESHOLD            = 0.5   
+SILENCE_DURATION         = 0.5   
+BARGE_IN_PREROLL_SECONDS = 0.5
+BARGE_IN_FRAMES          = 8
+ECHO_DECAY_PAD           = 0.5
+POST_SPEECH_MUTE         = 2.0
+BUFFER_MUTE_GUARD        = 4.0
+
 # ── STT ──────────────────────────────────────────────────────────────────────
 WHISPER_LANGUAGE   = "en"
 WHISPER_MODEL_SIZE = "base.en"

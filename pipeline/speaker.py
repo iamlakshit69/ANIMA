@@ -3,7 +3,7 @@ import time
 import numpy as np
 import pyaudio
 
-from core.queues import tts_queue, audio_queue
+from core.queues import tts_queue
 from core.events import interrupt_event, assistant_speaking
 import core.events as ev
 from core.sentinel import END_OF_SPEECH
@@ -40,21 +40,27 @@ async def speaker_stream():
         while True:
             item = await tts_queue.get()
 
-            if item is END_OF_SPEECH:
+            # If an interruption is active, discard this item and drain remaining cancelled phrases
+            if interrupt_event.is_set():
                 assistant_speaking.clear()
                 ev.speaking_ended_at = time.monotonic()
-                interrupt_event.clear()
-
-                # Flush any echo chunks already sitting in audio_queue
                 flushed = 0
-                while not audio_queue.empty():
+                while not tts_queue.empty():
                     try:
-                        audio_queue.get_nowait()
+                        tts_queue.get_nowait()
                         flushed += 1
                     except asyncio.QueueEmpty:
                         break
                 if flushed > 0:
-                    print(f"[speaker] flushed {flushed} stale echo chunks from audio_queue")
+                    print(f"[speaker] flushed {flushed} stale phrases from tts_queue on interrupt")
+                interrupt_event.clear()
+                continue
+
+            if item is END_OF_SPEECH:
+                assistant_speaking.clear()
+                ev.speaking_ended_at = time.monotonic()
+                interrupt_event.clear()
+                # Do NOT drain audio_queue — valid user speech must never be discarded!
                 continue
 
             samples, sample_rate = item
@@ -82,6 +88,7 @@ async def speaker_stream():
             stream = _get_stream(sample_rate)
             samples_bytes = samples.astype(np.float32).tobytes()
             bytes_per_chunk = CHUNK_SIZE * 4  # 4 bytes per float32 sample
+            interrupted = False
 
             for offset in range(0, len(samples_bytes), bytes_per_chunk):
                 if interrupt_event.is_set():
@@ -91,10 +98,26 @@ async def speaker_stream():
                     except Exception:
                         pass
                     print("[speaker] playback interrupted (barge-in)")
+                    interrupted = True
                     break
 
                 chunk_bytes = samples_bytes[offset:offset + bytes_per_chunk]
                 await asyncio.to_thread(stream.write, chunk_bytes)
+
+            if interrupted:
+                assistant_speaking.clear()
+                ev.speaking_ended_at = time.monotonic()
+                # Flush pending phrases belonging to the interrupted turn
+                flushed = 0
+                while not tts_queue.empty():
+                    try:
+                        tts_queue.get_nowait()
+                        flushed += 1
+                    except asyncio.QueueEmpty:
+                        break
+                if flushed > 0:
+                    print(f"[speaker] flushed {flushed} stale phrases from tts_queue")
+                interrupt_event.clear()
 
     finally:
         if current_stream is not None:

@@ -65,11 +65,18 @@ async def _accumulator(phrase_queue):
             if phrase_buffer.strip() and not interrupt_event.is_set():
                 await phrase_queue.put(phrase_buffer)
             phrase_buffer = ""
-            await phrase_queue.put(END_OF_RESPONSE)
+            if not interrupt_event.is_set():
+                await phrase_queue.put(END_OF_RESPONSE)
             continue
 
         if interrupt_event.is_set():
             phrase_buffer = ""
+            # Drain any pending phrases from phrase_queue
+            while not phrase_queue.empty():
+                try:
+                    phrase_queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    break
             continue
 
         phrase_buffer += token
@@ -102,7 +109,8 @@ async def _synthesizer(voice, phrase_queue):
         phrase = await phrase_queue.get()
 
         if phrase is END_OF_RESPONSE:
-            await tts_queue.put(END_OF_SPEECH)
+            if not interrupt_event.is_set():
+                await tts_queue.put(END_OF_SPEECH)
             first_phrase = True  # reset for next turn
             continue
 
@@ -119,6 +127,12 @@ async def _synthesizer(voice, phrase_queue):
 
         samples, sample_rate = await asyncio.to_thread(_synthesize_phrase, voice, phrase)
 
+        # Check interrupt again after synthesis finishes
+        if interrupt_event.is_set():
+            print("[tts] discarding synthesized phrase — interrupt occurred during synthesis")
+            first_phrase = True
+            continue
+
         # Stamp and print only for the first phrase of each turn
         if first_phrase:
             ev.tts_first_phrase_done_at = time.monotonic()
@@ -126,8 +140,7 @@ async def _synthesizer(voice, phrase_queue):
             print(f"[tts] first phrase in {tts_took:.3f}s ({tts_took*1000:.1f}ms)")
             first_phrase = False
 
-        if not interrupt_event.is_set():
-            await tts_queue.put((samples, sample_rate))
+        await tts_queue.put((samples, sample_rate))
 
 
 async def tts_stream():

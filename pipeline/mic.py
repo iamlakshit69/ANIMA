@@ -1,4 +1,5 @@
 import asyncio
+import collections
 import time
 import numpy as np
 import pyaudio
@@ -8,15 +9,13 @@ from silero_vad import load_silero_vad
 from config.settings import (
     SAMPLE_RATE, CHUNK_SIZE, CHANNELS,
     VAD_THRESHOLD, SILENCE_DURATION,
+    BARGE_IN_PREROLL_SECONDS, BARGE_IN_FRAMES,
+    ECHO_DECAY_PAD, POST_SPEECH_MUTE,
 )
 from core.queues import audio_queue
 from core.events import interrupt_event, assistant_speaking
 import core.events as ev
-from core.sentinel import SILENCE_MARKER
-
-ECHO_DECAY_PAD   = 0.5  # extra buffer after phrase ends for room echo decay
-BARGE_IN_FRAMES  = 8    # consecutive VAD frames needed to trigger barge-in
-POST_SPEECH_MUTE = 2.0  # seconds to ignore mic after assistant finishes speaking
+from core.sentinel import SILENCE_MARKER, INTERRUPT
 
 
 def _read_mic_blocking(stream):
@@ -36,16 +35,17 @@ async def microphone_stream():
         frames_per_buffer=CHUNK_SIZE,
     )
 
-    silence_chunks   = 0
-    silence_limit    = int(SILENCE_DURATION * SAMPLE_RATE / CHUNK_SIZE)
-    speech_frames    = 0
-    barge_in_buffer  = []    # collects speech chunks while interrupt_event is set
-                             # but assistant_speaking is still set
-    pending_barge_in = []    # held until POST_SPEECH_MUTE expires so stt.py's
-                             # BUFFER_MUTE_GUARD doesn't discard them
-    was_speaking     = False # tracks assistant_speaking across iterations
-    mute_was_active  = False # True while inside the post-speech mute window;
-                             # cleared (and counters reset) exactly once on exit
+    silence_chunks = 0
+    silence_limit = max(1, int(SILENCE_DURATION * SAMPLE_RATE / CHUNK_SIZE))
+    speech_frames = 0
+    is_user_speaking = False
+
+    # Rolling pre-roll buffer to preserve audio prior to VAD confirmation
+    preroll_limit = max(1, int(BARGE_IN_PREROLL_SECONDS * SAMPLE_RATE / CHUNK_SIZE))
+    preroll_buffer = collections.deque(maxlen=preroll_limit)
+
+    was_speaking = False
+    mute_was_active = False
 
     print("[mic] listening...")
 
@@ -57,83 +57,86 @@ async def microphone_stream():
             currently_speaking = assistant_speaking.is_set()
 
             # ── Transition: assistant just finished speaking ───────────────────
-            # Move any barge-in speech to pending_barge_in; it will be flushed
-            # into audio_queue once POST_SPEECH_MUTE expires. We cannot flush
-            # immediately because stt.py's BUFFER_MUTE_GUARD (2.0 s) would
-            # discard the buffer — speaking_ended_at was just stamped.
             if was_speaking and not currently_speaking:
-                if barge_in_buffer:
-                    pending_barge_in = barge_in_buffer[:]
-                    print(f"[mic] {len(pending_barge_in)} barge-in chunks pending — "
-                          f"will flush after mute window")
-                barge_in_buffer  = []
-                silence_chunks   = 0
-                speech_frames    = 0
-                mute_was_active  = True   # arm the mute window
+                if not is_user_speaking:
+                    mute_was_active = True
+                silence_chunks = 0
+                speech_frames = 0
 
             was_speaking = currently_speaking
 
             # ── Assistant is speaking ─────────────────────────────────────────
             if currently_speaking:
+                preroll_buffer.append(chunk)
                 speech_prob = model(torch.from_numpy(chunk), SAMPLE_RATE).item()
 
                 if speech_prob > VAD_THRESHOLD:
                     speech_frames += 1
-                    # Barge-in: only after the current phrase's echo has decayed
                     cooldown = ev.current_phrase_duration + ECHO_DECAY_PAD
-                    elapsed  = now - ev.speaking_started_at
-                    if elapsed > cooldown and speech_frames >= BARGE_IN_FRAMES:
-                        interrupt_event.set()
+                    elapsed = now - ev.speaking_started_at
 
-                    # Once barge-in is confirmed start capturing speech so the
-                    # user does not have to repeat themselves after the interrupt.
-                    if interrupt_event.is_set():
-                        barge_in_buffer.append(chunk)
+                    # Barge-in: triggered once speech frames exceed threshold beyond cooldown
+                    if elapsed > cooldown and speech_frames >= BARGE_IN_FRAMES:
+                        if not interrupt_event.is_set():
+                            ev.interrupt_counter += 1
+                            interrupt_event.set()
+                            print("[mic] barge-in triggered! Setting interrupt_event and sending pre-roll")
+                            # Notify STT to clear stale audio and expect barge-in
+                            await audio_queue.put(INTERRUPT)
+                            # Transfer all pre-roll audio so beginning of user's speech is intact
+                            while preroll_buffer:
+                                await audio_queue.put(preroll_buffer.popleft())
+                            is_user_speaking = True
+                            silence_chunks = 0
+
+                    if interrupt_event.is_set() and is_user_speaking:
+                        await audio_queue.put(chunk)
                 else:
                     speech_frames = 0
-                # Never touch silence_chunks or audio_queue while assistant speaks
+                    if interrupt_event.is_set() and is_user_speaking:
+                        silence_chunks += 1
+                        if silence_chunks >= silence_limit:
+                            await audio_queue.put(SILENCE_MARKER)
+                            is_user_speaking = False
+                            silence_chunks = 0
                 continue
 
-            # ── Post-speech mute window ───────────────────────────────────────
-            since_ended = now - ev.speaking_ended_at
-            if since_ended < POST_SPEECH_MUTE:
-                # Skip VAD entirely — all audio here is room echo.
-                mute_was_active = True
-                continue
+            # ── Post-speech mute window (room echo decay) ──────────────────────
+            # Only apply echo suppression if user is not already actively speaking (e.g. from barge-in)
+            if not is_user_speaking:
+                since_ended = now - ev.speaking_ended_at
+                if since_ended < POST_SPEECH_MUTE:
+                    mute_was_active = True
+                    continue
 
-            # Mute just expired — boolean flag guarantees this block runs
-            # exactly once regardless of event-loop timing or system load.
-            # The old approach (since_ended < POST_SPEECH_MUTE + 0.1) was a
-            # ~3-frame window that could be skipped entirely under load.
             if mute_was_active:
-                silence_chunks  = 0
-                speech_frames   = 0
+                silence_chunks = 0
+                speech_frames = 0
                 mute_was_active = False
-
-                # Flush barge-in speech now that the echo decay window has
-                # passed. stt.py's BUFFER_MUTE_GUARD (2.0 s) will also have
-                # elapsed by this point so the buffer won't be discarded there.
-                if pending_barge_in:
-                    print(f"[mic] flushing {len(pending_barge_in)} barge-in chunks to audio_queue")
-                    for buffered_chunk in pending_barge_in:
-                        await audio_queue.put(buffered_chunk)
-                    await audio_queue.put(SILENCE_MARKER)
-                    pending_barge_in = []
 
             # ── Normal listening ──────────────────────────────────────────────
             speech_prob = model(torch.from_numpy(chunk), SAMPLE_RATE).item()
 
             if speech_prob > VAD_THRESHOLD:
+                if not is_user_speaking:
+                    is_user_speaking = True
+                    # Flush pre-roll chunks captured during silence to preserve initial phonemes
+                    while preroll_buffer:
+                        await audio_queue.put(preroll_buffer.popleft())
                 silence_chunks = 0
                 speech_frames += 1
                 await audio_queue.put(chunk)
-
             else:
                 speech_frames = 0
-                silence_chunks += 1
-                if silence_chunks >= silence_limit:
-                    await audio_queue.put(SILENCE_MARKER)
-                    silence_chunks = 0
+                if is_user_speaking:
+                    silence_chunks += 1
+                    if silence_chunks >= silence_limit:
+                        await audio_queue.put(SILENCE_MARKER)
+                        is_user_speaking = False
+                        silence_chunks = 0
+                else:
+                    # User is silent. Keep pre-roll buffer updated
+                    preroll_buffer.append(chunk)
 
     finally:
         stream.stop_stream()
